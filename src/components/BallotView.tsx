@@ -1,26 +1,29 @@
 import { useState, useEffect } from "react";
-import { useParams } from "react-router-dom";
+import { useParams, useNavigate } from "react-router-dom";
 import { useQuery, useMutation } from "convex/react";
 import { api } from "../../convex/_generated/api";
 import { toast } from "sonner";
 import { VotingInterface } from "./VotingInterface";
 import { ResultsView } from "./ResultsView";
+import { useAuthActions } from "@convex-dev/auth/react";
 
 export function BallotView() {
   const { urlId } = useParams<{ urlId: string }>();
   const [activeTab, setActiveTab] = useState<"vote" | "results">("vote");
   const [voterId, setVoterId] = useState<string>("");
+  const navigate = useNavigate();
 
   const ballot = useQuery(api.ballots.getBallotByUrl, urlId ? { urlId } : "skip");
   const currentUser = useQuery(api.auth.loggedInUser);
   const results = useQuery(api.ballots.getBallotResults,
     ballot ? { ballotId: ballot._id } : "skip"
   );
+  const activateBallot = useMutation(api.ballots.activateBallot);
 
   const updateVisibility = useMutation(api.ballots.updateResultVisibility);
 
   // Check if current user is the creator
-  const isCreator = currentUser && ballot && ballot.creatorId === currentUser._id;
+  const isCreator = !!(currentUser && ballot && ballot.creatorId === currentUser._id);
 
   // Generate a unique voter ID for anonymous voting
   useEffect(() => {
@@ -44,6 +47,16 @@ export function BallotView() {
       toast.success("Visibility settings updated");
     } catch (error: any) {
       toast.error(error.message || "Failed to update visibility settings");
+    }
+  };
+  const handleActivateBallot = async () => {
+    if (!ballot) return;
+
+    try {
+      await activateBallot({ ballotId: ballot._id });
+      toast.success("Ballot is now live!");
+    } catch (error: any) {
+      toast.error(error.message || "Failed to activate ballot");
     }
   };
 
@@ -87,11 +100,47 @@ export function BallotView() {
             <span>Max {ballot.voteLimit} votes</span>
           )}
           <span className={`px-2 py-1 rounded-full text-xs ${
-            ballot.isActive && !isExpired ? "bg-green-100 text-green-800" : "bg-red-100 text-red-800"
+            ballot.isActive && !isExpired ? "bg-green-100 text-green-800" :
+            ballot.isActive ? "bg-red-100 text-red-800" : "bg-yellow-100 text-yellow-800"
           }`}>
-            {ballot.isActive && !isExpired ? "Active" : "Closed"}
+            {ballot.isActive && !isExpired ? "Active" :
+             ballot.isActive ? "Closed" : "Draft"}
           </span>
         </div>
+
+        {/* Creator actions for inactive ballots */}
+        {!ballot.isActive && isCreator && (
+          <div className="mt-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+            <h3 className="font-semibold text-blue-900 mb-2">Ballot Draft</h3>
+            <p className="text-blue-700 text-sm mb-3">
+              This ballot is currently a draft. You can edit it or make it live for voting.
+            </p>
+            <div className="flex gap-2">
+              <button
+                onClick={() => navigate(`/edit/${ballot.urlId}`)}
+                className="px-4 py-2 bg-white text-blue-600 border border-blue-300 rounded hover:bg-blue-50"
+              >
+                Edit Ballot
+              </button>
+              <button
+                onClick={handleActivateBallot}
+                className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
+              >
+                Make Live
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* Message for non-creators viewing inactive ballots */}
+        {!ballot.isActive && !isCreator && (
+          <div className="mt-4 p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
+            <h3 className="font-semibold text-yellow-800 mb-2">Ballot Not Yet Active</h3>
+            <p className="text-yellow-700 text-sm">
+              This ballot is still being prepared by its creator and is not yet open for voting.
+            </p>
+          </div>
+        )}
       </div>
 
       <div className="bg-white rounded-lg shadow-sm">

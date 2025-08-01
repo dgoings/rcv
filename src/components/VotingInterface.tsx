@@ -100,12 +100,16 @@ export function VotingInterface({ ballot, voterId, onVoteSubmitted }: VotingInte
             ? "Voting has ended"
             : "This ballot is closed"
           }
+          {!ballot.isActive ? "This ballot is not yet active" :
+           isExpired ? "Voting has ended" : "This ballot is closed"}
         </div>
         <p className="text-sm text-gray-400">
           {hasVoted
             ? "Thank you for participating! You can view the results in the Results tab."
             : "You can still view the results in the Results tab"
           }
+          {!ballot.isActive ? "The creator needs to make this ballot live before voting can begin" :
+           "You can still view the results in the Results tab"}
         </p>
       </div>
     );

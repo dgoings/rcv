@@ -97,7 +97,7 @@ export const createBallot = mutation({
   handler: async (ctx, args) => {
     const userId = await getAuthUserId(ctx);
     const urlId = generateUrlId();
-    
+
     const ballotId = await ctx.db.insert("ballots", {
       title: args.title,
       description: args.description,
@@ -107,7 +107,7 @@ export const createBallot = mutation({
       durationType: args.durationType,
       timeLimit: args.timeLimit,
       voteLimit: args.voteLimit,
-      isActive: true,
+      isActive: false, // Start as inactive/draft
       urlId,
       // Result visibility settings with defaults
       resultVisibility: args.resultVisibility || "live",
@@ -276,6 +276,80 @@ export const getBallotResults = query({
       results: filteredResults,
       resultsHidden: false,
     };
+  },
+});
+
+export const activateBallot = mutation({
+  args: { ballotId: v.id("ballots") },
+  handler: async (ctx, args) => {
+    const userId = await getAuthUserId(ctx);
+    if (!userId) {
+      throw new Error("Must be logged in to activate ballot");
+    }
+
+    const ballot = await ctx.db.get(args.ballotId);
+    if (!ballot || ballot.creatorId !== userId) {
+      throw new Error("Not authorized to activate this ballot");
+    }
+
+    if (ballot.isActive) {
+      throw new Error("Ballot is already active");
+    }
+
+    await ctx.db.patch(args.ballotId, {
+      isActive: true,
+    });
+
+    return { success: true };
+  },
+});
+
+export const updateBallot = mutation({
+  args: {
+    ballotId: v.id("ballots"),
+    title: v.optional(v.string()),
+    description: v.optional(v.string()),
+    choices: v.optional(v.array(v.string())),
+    durationType: v.optional(v.union(v.literal("time"), v.literal("count"), v.literal("manual"))),
+    timeLimit: v.optional(v.number()),
+    voteLimit: v.optional(v.number()),
+  },
+  handler: async (ctx, args) => {
+    const userId = await getAuthUserId(ctx);
+    if (!userId) {
+      throw new Error("Must be logged in to update ballot");
+    }
+
+    const ballot = await ctx.db.get(args.ballotId);
+    if (!ballot || ballot.creatorId !== userId) {
+      throw new Error("Not authorized to update this ballot");
+    }
+
+    if (ballot.isActive) {
+      throw new Error("Cannot edit an active ballot");
+    }
+
+    // Check if there are any votes - if so, don't allow editing
+    const voteCount = await ctx.db
+      .query("votes")
+      .withIndex("by_ballot", (q) => q.eq("ballotId", args.ballotId))
+      .collect();
+
+    if (voteCount.length > 0) {
+      throw new Error("Cannot edit a ballot that has received votes");
+    }
+
+    const updateData: any = {};
+    if (args.title !== undefined) updateData.title = args.title;
+    if (args.description !== undefined) updateData.description = args.description;
+    if (args.choices !== undefined) updateData.choices = args.choices;
+    if (args.durationType !== undefined) updateData.durationType = args.durationType;
+    if (args.timeLimit !== undefined) updateData.timeLimit = args.timeLimit;
+    if (args.voteLimit !== undefined) updateData.voteLimit = args.voteLimit;
+
+    await ctx.db.patch(args.ballotId, updateData);
+
+    return { success: true };
   },
 });
 

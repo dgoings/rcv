@@ -9,6 +9,7 @@ export function Dashboard() {
   const userBallots = useQuery(api.ballots.getUserBallots);
   const closeBallot = useMutation(api.ballots.closeBallot);
   const deleteBallot = useMutation(api.ballots.deleteBallot);
+  const activateBallot = useMutation(api.ballots.activateBallot);
 
   const handleCloseBallot = async (ballotId: string) => {
     try {
@@ -29,6 +30,15 @@ export function Dashboard() {
       toast.success("Ballot deleted successfully");
     } catch (error: any) {
       toast.error(error.message || "Failed to delete ballot");
+    };
+  };
+  
+  const handleActivateBallot = async (ballotId: string) => {
+    try {
+      await activateBallot({ ballotId: ballotId as any });
+      toast.success("Ballot is now live!");
+    } catch (error: any) {
+      toast.error(error.message || "Failed to activate ballot");
     }
   };
 
@@ -61,9 +71,10 @@ export function Dashboard() {
                       <div className="flex justify-between items-start mb-2">
                         <h3 className="font-semibold text-gray-900">{ballot.title}</h3>
                         <span className={`px-2 py-1 rounded-full text-xs ${
-                          ballot.isActive ? "bg-green-100 text-green-800" : "bg-red-100 text-red-800"
+                          ballot.isActive ? "bg-green-100 text-green-800" :
+                          ballot.closedAt ? "bg-red-100 text-red-800" : "bg-yellow-100 text-yellow-800"
                         }`}>
-                          {ballot.isActive ? "Active" : "Closed"}
+                          {ballot.isActive ? "Active" : ballot.closedAt ? "Closed" : "Draft"}
                         </span>
                       </div>
                       
@@ -78,6 +89,22 @@ export function Dashboard() {
                         >
                           View Ballot
                         </Link>
+                        {!ballot.isActive && !ballot.closedAt && (
+                          <>
+                            <Link
+                              to={`/edit/${ballot.urlId}`}
+                              className="text-green-600 hover:text-green-700 text-sm font-medium ml-4"
+                            >
+                              Edit
+                            </Link>
+                            <button
+                              onClick={() => handleActivateBallot(ballot._id)}
+                              className="text-blue-600 hover:text-blue-700 text-sm font-medium ml-4"
+                            >
+                              Make Live
+                            </button>
+                          </>
+                        )}
                         {ballot.isActive && ballot.durationType === "manual" && (
                           <button
                             onClick={() => handleCloseBallot(ballot._id)}
