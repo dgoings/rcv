@@ -20,11 +20,6 @@ export function Home() {
           >
             Create a Ballot
           </Link>
-          <Unauthenticated>
-            <div className="text-gray-500">
-              or sign in to manage your ballots
-            </div>
-          </Unauthenticated>
         </div>
       </div>
 
