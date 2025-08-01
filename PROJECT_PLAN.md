@@ -13,14 +13,7 @@ Your RCV app has solid core functionality including:
 
 ### Phase 1: High Priority (Immediate Impact)
 
-#### 1. Mobile-First Responsive Design
-- [ ] Optimize voting interface for mobile devices
-- [ ] Implement touch-friendly drag-and-drop for ranking choices
-- [ ] Ensure all UI components work seamlessly on smartphones/tablets
-- [ ] Test across different screen sizes and orientations
-- **Impact**: Critical for user adoption as many voters use mobile devices
-
-#### 2. Email Invitation System
+#### 1. Email Invitation System
 - [ ] Add email invitation functionality to ballot creation
 - [ ] Generate unique voting links for each invited voter
 - [ ] Create email templates for invitations and reminders
@@ -28,11 +21,16 @@ Your RCV app has solid core functionality including:
 - [ ] Add automated reminder system (every 3 days)
 - **Impact**: Dramatically improves voter participation and ballot organization
 
+#### 2. Mobile-First Responsive Design
+- [ ] Optimize voting interface for mobile devices
+- [ ] Implement touch-friendly drag-and-drop for ranking choices
+- [ ] Ensure all UI components work seamlessly on smartphones/tablets
+- [ ] Test across different screen sizes and orientations
+- **Impact**: Critical for user adoption as many voters use mobile devices
+
 #### 3. Result Visibility Controls
 - [ ] Add option to hide results until voting closes
 - [ ] Implement live results toggle for ballot creators
-- [ ] Create embargo feature for delayed result release
-- [ ] Add partial results viewing options
 - **Impact**: Essential for maintaining voting integrity and creator control
 
 #### 4. Enhanced Vote Verification
