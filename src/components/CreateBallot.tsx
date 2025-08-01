@@ -87,7 +87,7 @@ export function CreateBallot() {
         resultsVisibleToPublic,
       });
 
-      toast.success("Ballot created successfully!");
+      toast.success("Ballot created as draft! You can edit it and make it live when ready.");
       navigate(`/ballot/${result.urlId}`);
     } catch (error) {
       toast.error("Failed to create ballot");

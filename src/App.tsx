@@ -5,6 +5,7 @@ import { SignOutButton } from "./SignOutButton";
 import { Toaster } from "sonner";
 import { BrowserRouter as Router, Routes, Route, Link } from "react-router-dom";
 import { CreateBallot } from "./components/CreateBallot";
+import { EditBallot } from "./components/EditBallot";
 import { BallotView } from "./components/BallotView";
 import { Dashboard } from "./components/Dashboard";
 import { Home } from "./components/Home";
@@ -39,6 +40,7 @@ export default function App() {
           <Routes>
             <Route path="/" element={<Home />} />
             <Route path="/create" element={<CreateBallot />} />
+            <Route path="/edit/:urlId" element={<EditBallot />} />
             <Route path="/ballot/:urlId" element={<BallotView />} />
             <Route path="/dashboard" element={<Dashboard />} />
           </Routes>
