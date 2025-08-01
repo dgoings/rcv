@@ -25,6 +25,7 @@ export function BallotView() {
   const activateBallot = useMutation(api.ballots.activateBallot);
 
   const updateVisibility = useMutation(api.ballots.updateResultVisibility);
+  const closeBallot = useMutation(api.ballots.closeBallot);
 
   // Check if current user is the creator
   const isCreator = !!(currentUser && ballot && ballot.creatorId === currentUser._id);
@@ -102,6 +103,17 @@ export function BallotView() {
     }
   };
 
+  const handleCloseBallot = async () => {
+    if (!ballot) return;
+
+    try {
+      await closeBallot({ ballotId: ballot._id });
+      toast.success("Ballot closed successfully");
+    } catch (error: any) {
+      toast.error(error.message || "Failed to close ballot");
+    }
+  };
+
   if (ballot === undefined) {
     return (
       <div className="flex justify-center items-center min-h-64">
@@ -171,6 +183,22 @@ export function BallotView() {
                 Make Live
               </button>
             </div>
+          </div>
+        )}
+
+        {/* Creator actions for active ballots */}
+        {ballot.isActive && !isExpired && isCreator && ballot.durationType === "manual" && (
+          <div className="mt-4 p-4 bg-red-50 border border-red-200 rounded-lg">
+            <h3 className="font-semibold text-red-900 mb-2">Ballot Management</h3>
+            <p className="text-red-700 text-sm mb-3">
+              This ballot is currently active. You can close it to end voting.
+            </p>
+            <button
+              onClick={handleCloseBallot}
+              className="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700"
+            >
+              Close Ballot
+            </button>
           </div>
         )}
 
