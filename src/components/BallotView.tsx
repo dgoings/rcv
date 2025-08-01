@@ -12,9 +12,15 @@ export function BallotView() {
   const [voterId, setVoterId] = useState<string>("");
 
   const ballot = useQuery(api.ballots.getBallotByUrl, urlId ? { urlId } : "skip");
-  const results = useQuery(api.ballots.getBallotResults, 
+  const currentUser = useQuery(api.auth.loggedInUser);
+  const results = useQuery(api.ballots.getBallotResults,
     ballot ? { ballotId: ballot._id } : "skip"
   );
+
+  const updateVisibility = useMutation(api.ballots.updateResultVisibility);
+
+  // Check if current user is the creator
+  const isCreator = currentUser && ballot && ballot.creatorId === currentUser._id;
 
   // Generate a unique voter ID for anonymous voting
   useEffect(() => {
@@ -25,6 +31,21 @@ export function BallotView() {
     }
     setVoterId(storedVoterId);
   }, [urlId]);
+
+  // Handle visibility updates
+  const handleVisibilityUpdate = async (settings: any) => {
+    if (!ballot) return;
+
+    try {
+      await updateVisibility({
+        ballotId: ballot._id,
+        ...settings
+      });
+      toast.success("Visibility settings updated");
+    } catch (error: any) {
+      toast.error(error.message || "Failed to update visibility settings");
+    }
+  };
 
   if (ballot === undefined) {
     return (
@@ -107,7 +128,11 @@ export function BallotView() {
               onVoteSubmitted={() => setActiveTab("results")}
             />
           ) : (
-            <ResultsView results={results} />
+            <ResultsView
+              results={results}
+              isCreator={isCreator}
+              onUpdateVisibility={isCreator ? handleVisibilityUpdate : undefined}
+            />
           )}
         </div>
       </div>

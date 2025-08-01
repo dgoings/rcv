@@ -13,6 +13,11 @@ export function CreateBallot() {
   const [voteLimit, setVoteLimit] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
 
+  // Result visibility settings
+  const [resultVisibility, setResultVisibility] = useState<"live" | "after_voting" | "manual" | "never">("live");
+  const [showPartialResults, setShowPartialResults] = useState(true);
+  const [resultsVisibleToPublic, setResultsVisibleToPublic] = useState(true);
+
   const createBallot = useMutation(api.ballots.createBallot);
   const navigate = useNavigate();
 
@@ -76,6 +81,10 @@ export function CreateBallot() {
         durationType,
         timeLimit: timeLimitTimestamp,
         voteLimit: voteLimitNumber,
+        // Result visibility settings
+        resultVisibility,
+        showPartialResults,
+        resultsVisibleToPublic,
       });
 
       toast.success("Ballot created successfully!");
@@ -220,6 +229,110 @@ export function CreateBallot() {
                 placeholder="Maximum number of votes"
                 min="1"
               />
+            )}
+          </div>
+        </div>
+
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-4">
+            Result Visibility Settings
+          </label>
+          <div className="space-y-4 p-4 bg-gray-50 rounded-lg">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                When should results be visible?
+              </label>
+              <div className="space-y-2">
+                <label className="flex items-center">
+                  <input
+                    type="radio"
+                    name="resultVisibility"
+                    value="live"
+                    checked={resultVisibility === "live"}
+                    onChange={(e) => setResultVisibility(e.target.value as "live")}
+                    className="mr-3"
+                  />
+                  <div>
+                    <div className="font-medium">Live Results</div>
+                    <div className="text-sm text-gray-600">Results update in real-time as votes come in</div>
+                  </div>
+                </label>
+
+                <label className="flex items-center">
+                  <input
+                    type="radio"
+                    name="resultVisibility"
+                    value="after_voting"
+                    checked={resultVisibility === "after_voting"}
+                    onChange={(e) => setResultVisibility(e.target.value as "after_voting")}
+                    className="mr-3"
+                  />
+                  <div>
+                    <div className="font-medium">After Voting Ends</div>
+                    <div className="text-sm text-gray-600">Results visible only after the ballot closes</div>
+                  </div>
+                </label>
+
+                <label className="flex items-center">
+                  <input
+                    type="radio"
+                    name="resultVisibility"
+                    value="manual"
+                    checked={resultVisibility === "manual"}
+                    onChange={(e) => setResultVisibility(e.target.value as "manual")}
+                    className="mr-3"
+                  />
+                  <div>
+                    <div className="font-medium">Manual Control</div>
+                    <div className="text-sm text-gray-600">You decide when to make results visible</div>
+                  </div>
+                </label>
+
+                <label className="flex items-center">
+                  <input
+                    type="radio"
+                    name="resultVisibility"
+                    value="never"
+                    checked={resultVisibility === "never"}
+                    onChange={(e) => setResultVisibility(e.target.value as "never")}
+                    className="mr-3"
+                  />
+                  <div>
+                    <div className="font-medium">Never Show Results</div>
+                    <div className="text-sm text-gray-600">Results are never visible to voters</div>
+                  </div>
+                </label>
+              </div>
+            </div>
+
+            {resultVisibility !== "never" && (
+              <div className="space-y-3 pt-3 border-t border-gray-200">
+                <label className="flex items-center">
+                  <input
+                    type="checkbox"
+                    checked={showPartialResults}
+                    onChange={(e) => setShowPartialResults(e.target.checked)}
+                    className="rounded border-gray-300 text-blue-600 focus:ring-blue-500 mr-3"
+                  />
+                  <div>
+                    <div className="font-medium">Show All Rounds</div>
+                    <div className="text-sm text-gray-600">Display all elimination rounds, not just the final result</div>
+                  </div>
+                </label>
+
+                <label className="flex items-center">
+                  <input
+                    type="checkbox"
+                    checked={resultsVisibleToPublic}
+                    onChange={(e) => setResultsVisibleToPublic(e.target.checked)}
+                    className="rounded border-gray-300 text-blue-600 focus:ring-blue-500 mr-3"
+                  />
+                  <div>
+                    <div className="font-medium">Public Results</div>
+                    <div className="text-sm text-gray-600">Results are visible to all voters (you can always see them)</div>
+                  </div>
+                </label>
+              </div>
             )}
           </div>
         </div>
