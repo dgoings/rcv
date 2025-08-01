@@ -7,6 +7,7 @@ import { Id } from "../../convex/_generated/dataModel";
 interface VotingInterfaceProps {
   ballot: {
     _id: Id<"ballots">;
+    urlId: string;
     choices: string[];
     isActive: boolean;
     timeLimit?: number;
@@ -61,9 +62,9 @@ export function VotingInterface({ ballot, voterId, onVoteSubmitted }: VotingInte
     return rankings[choiceIndex] || 0;
   };
 
-  const handleSubmit = async () => {
+  const handleSubmit = () => {
     const rankedChoices = Object.entries(rankings);
-    
+
     if (rankedChoices.length === 0) {
       toast.error("Please rank at least one choice");
       return;
@@ -71,23 +72,29 @@ export function VotingInterface({ ballot, voterId, onVoteSubmitted }: VotingInte
 
     setIsSubmitting(true);
 
-    try {
-      await submitVote({
-        ballotId: ballot._id,
-        rankings: rankedChoices.map(([choiceIndex, rank]) => ({
-          choiceIndex: parseInt(choiceIndex),
-          rank,
-        })),
-        voterId,
-      });
-
+    void submitVote({
+      ballotId: ballot._id,
+      rankings: rankedChoices.map(([choiceIndex, rank]) => ({
+        choiceIndex: parseInt(choiceIndex),
+        rank,
+      })),
+      voterId,
+    }).then(() => {
       toast.success("Vote submitted successfully!");
+
+      // Track that this user voted on this ballot (for anonymous users)
+      const votedBallots = JSON.parse(localStorage.getItem('votedBallots') || '[]');
+      if (!votedBallots.includes(ballot.urlId)) {
+        votedBallots.push(ballot.urlId);
+        localStorage.setItem('votedBallots', JSON.stringify(votedBallots));
+      }
+
       onVoteSubmitted();
-    } catch (error: any) {
+    }).catch((error: any) => {
       toast.error(error.message || "Failed to submit vote");
-    } finally {
+    }).finally(() => {
       setIsSubmitting(false);
-    }
+    });
   };
 
   if (!canVote) {

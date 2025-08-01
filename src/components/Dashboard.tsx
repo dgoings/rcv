@@ -11,13 +11,14 @@ export function Dashboard() {
   const deleteBallot = useMutation(api.ballots.deleteBallot);
   const activateBallot = useMutation(api.ballots.activateBallot);
 
-  const handleCloseBallot = async (ballotId: string) => {
-    try {
-      await closeBallot({ ballotId: ballotId as any });
-      toast.success("Ballot closed successfully");
-    } catch (error: any) {
-      toast.error(error.message || "Failed to close ballot");
-    }
+  const handleCloseBallot = (ballotId: string) => {
+    void closeBallot({ ballotId: ballotId as any })
+      .then(() => {
+        toast.success("Ballot closed successfully");
+      })
+      .catch((error: any) => {
+        toast.error(error.message || "Failed to close ballot");
+      });
   };
 
   const handleDeleteBallot = async (ballotId: string, ballotTitle: string) => {
