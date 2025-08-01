@@ -427,6 +427,71 @@ export const updateResultVisibility = mutation({
   },
 });
 
+// Associate an anonymous ballot with a user account
+export const claimBallot = mutation({
+  args: {
+    ballotId: v.id("ballots"),
+    anonymousVoterId: v.optional(v.string()),
+  },
+  handler: async (ctx, args) => {
+    const userId = await getAuthUserId(ctx);
+    if (!userId) {
+      throw new Error("Must be logged in to claim ballot");
+    }
+
+    const ballot = await ctx.db.get(args.ballotId);
+    if (!ballot) {
+      throw new Error("Ballot not found");
+    }
+
+    // Only allow claiming if ballot has no creator (anonymous) or if user created it anonymously
+    if (ballot.creatorId && ballot.creatorId !== userId) {
+      throw new Error("Ballot already belongs to another user");
+    }
+
+    // Update ballot to associate with user
+    await ctx.db.patch(args.ballotId, {
+      creatorId: userId,
+    });
+
+    // Add user activity record for creating the ballot
+    await ctx.db.insert("userBallotActivity", {
+      userId,
+      ballotId: args.ballotId,
+      activityType: "created",
+      timestamp: Date.now(),
+    });
+
+    // If anonymousVoterId is provided, also claim any votes made with that ID
+    if (args.anonymousVoterId) {
+      const anonymousVotes = await ctx.db
+        .query("votes")
+        .withIndex("by_voter", (q) => q.eq("voterId", args.anonymousVoterId))
+        .filter((q) => q.eq(q.field("ballotId"), args.ballotId))
+        .collect();
+
+      // Update votes to associate with user ID instead of anonymous voter ID
+      for (const vote of anonymousVotes) {
+        await ctx.db.patch(vote._id, {
+          voterId: userId,
+        });
+      }
+
+      // Add user activity record for voting if they voted
+      if (anonymousVotes.length > 0) {
+        await ctx.db.insert("userBallotActivity", {
+          userId,
+          ballotId: args.ballotId,
+          activityType: "voted",
+          timestamp: anonymousVotes[0].submittedAt,
+        });
+      }
+    }
+
+    return { success: true };
+  },
+});
+
 export const getUserBallots = query({
   args: {},
   handler: async (ctx) => {

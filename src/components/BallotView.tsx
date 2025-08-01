@@ -1,18 +1,22 @@
 import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useQuery, useMutation } from "convex/react";
+import { useConvexAuth } from "convex/react";
 import { api } from "../../convex/_generated/api";
 import { toast } from "sonner";
 import { VotingInterface } from "./VotingInterface";
 import { ResultsView } from "./ResultsView";
 import { useAuthActions } from "@convex-dev/auth/react";
+import { ClaimBallotAuth } from "./ClaimBallotAuth";
 
 export function BallotView() {
   const { urlId } = useParams<{ urlId: string }>();
   const [activeTab, setActiveTab] = useState<"vote" | "results">("vote");
   const [voterId, setVoterId] = useState<string>("");
   const navigate = useNavigate();
+  const [showClaimAuth, setShowClaimAuth] = useState(false);
 
+  const { isAuthenticated } = useConvexAuth();
   const ballot = useQuery(api.ballots.getBallotByUrl, urlId ? { urlId } : "skip");
   const currentUser = useQuery(api.auth.loggedInUser);
   const results = useQuery(api.ballots.getBallotResults,
@@ -49,6 +53,7 @@ export function BallotView() {
       toast.error(error.message || "Failed to update visibility settings");
     }
   };
+
   const handleActivateBallot = async () => {
     if (!ballot) return;
 
@@ -57,6 +62,43 @@ export function BallotView() {
       toast.success("Ballot is now live!");
     } catch (error: any) {
       toast.error(error.message || "Failed to activate ballot");
+    }
+  };
+
+  // Check if user has voted and show claim auth for anonymous ballot creators
+  useEffect(() => {
+    if (ballot && voterId && !isAuthenticated) {
+      // Check if this anonymous user created the ballot (stored in localStorage)
+      const createdBallots = JSON.parse(localStorage.getItem('createdBallots') || '[]');
+      const isCreator = createdBallots.includes(ballot.urlId);
+
+      // Check if user has voted on this ballot
+      const votedBallots = JSON.parse(localStorage.getItem('votedBallots') || '[]');
+      const hasVotedOnBallot = votedBallots.includes(ballot.urlId);
+
+      // Show claim auth if user created ballot or voted, but only once per session
+      const sessionKey = `claimPrompt_${ballot.urlId}`;
+      const hasSeenPrompt = sessionStorage.getItem(sessionKey);
+
+      if ((isCreator || hasVotedOnBallot) && !hasSeenPrompt) {
+        setShowClaimAuth(true);
+      }
+    }
+  }, [ballot, voterId, isAuthenticated]);
+
+  const handleClaimSuccess = () => {
+    setShowClaimAuth(false);
+    // Mark that user has seen the prompt for this session
+    if (ballot) {
+      sessionStorage.setItem(`claimPrompt_${ballot.urlId}`, 'true');
+    }
+  };
+
+  const handleClaimCancel = () => {
+    setShowClaimAuth(false);
+    // Mark that user has seen the prompt for this session
+    if (ballot) {
+      sessionStorage.setItem(`claimPrompt_${ballot.urlId}`, 'true');
     }
   };
 
@@ -87,7 +129,7 @@ export function BallotView() {
         {ballot.description && (
           <p className="text-gray-600 mb-4">{ballot.description}</p>
         )}
-        
+
         <div className="flex flex-wrap gap-4 text-sm text-gray-500">
           <span>Created {new Date(ballot.createdAt).toLocaleDateString()}</span>
           {results && <span>{results.totalVotes} votes</span>}
@@ -143,6 +185,16 @@ export function BallotView() {
         )}
       </div>
 
+      {/* Show claim ballot auth for anonymous users */}
+      {showClaimAuth && !isAuthenticated && (
+        <ClaimBallotAuth
+          ballotId={ballot._id}
+          anonymousVoterId={voterId}
+          onSuccess={handleClaimSuccess}
+          onCancel={handleClaimCancel}
+        />
+      )}
+
       <div className="bg-white rounded-lg shadow-sm">
         <div className="border-b border-gray-200">
           <nav className="flex">
@@ -197,8 +249,9 @@ export function BallotView() {
           />
           <button
             onClick={() => {
-              navigator.clipboard.writeText(window.location.href);
-              toast.success("Link copied to clipboard!");
+              void navigator.clipboard.writeText(window.location.href).then(() => {
+                toast.success("Link copied to clipboard!");
+              });
             }}
             className="px-4 py-2 bg-blue-600 text-white rounded text-sm hover:bg-blue-700"
           >

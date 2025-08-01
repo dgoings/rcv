@@ -37,7 +37,7 @@ export function CreateBallot() {
     setChoices(newChoices);
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     
     if (!title.trim()) {
@@ -53,48 +53,53 @@ export function CreateBallot() {
 
     setIsSubmitting(true);
 
-    try {
-      let timeLimitTimestamp: number | undefined;
-      if (durationType === "time" && timeLimit) {
-        timeLimitTimestamp = new Date(timeLimit).getTime();
-        if (timeLimitTimestamp <= Date.now()) {
-          toast.error("Time limit must be in the future");
-          setIsSubmitting(false);
-          return;
-        }
+    let timeLimitTimestamp: number | undefined;
+    if (durationType === "time" && timeLimit) {
+      timeLimitTimestamp = new Date(timeLimit).getTime();
+      if (timeLimitTimestamp <= Date.now()) {
+        toast.error("Time limit must be in the future");
+        setIsSubmitting(false);
+        return;
       }
+    }
 
-      let voteLimitNumber: number | undefined;
-      if (durationType === "count" && voteLimit) {
-        voteLimitNumber = parseInt(voteLimit);
-        if (voteLimitNumber <= 0) {
-          toast.error("Vote limit must be greater than 0");
-          setIsSubmitting(false);
-          return;
-        }
+    let voteLimitNumber: number | undefined;
+    if (durationType === "count" && voteLimit) {
+      voteLimitNumber = parseInt(voteLimit);
+      if (voteLimitNumber <= 0) {
+        toast.error("Vote limit must be greater than 0");
+        setIsSubmitting(false);
+        return;
       }
+    }
 
-      const result = await createBallot({
-        title: title.trim(),
-        description: description.trim() || undefined,
-        choices: validChoices,
-        durationType,
-        timeLimit: timeLimitTimestamp,
-        voteLimit: voteLimitNumber,
-        // Result visibility settings
-        resultVisibility,
-        showPartialResults,
-        resultsVisibleToPublic,
-      });
+    void createBallot({
+      title: title.trim(),
+      description: description.trim() || undefined,
+      choices: validChoices,
+      durationType,
+      timeLimit: timeLimitTimestamp,
+      voteLimit: voteLimitNumber,
+      // Result visibility settings
+      resultVisibility,
+      showPartialResults,
+      resultsVisibleToPublic,
+    }).then((result) => {
+      // Track created ballots for anonymous users
+      const createdBallots = JSON.parse(localStorage.getItem('createdBallots') || '[]');
+      if (!createdBallots.includes(result.urlId)) {
+        createdBallots.push(result.urlId);
+        localStorage.setItem('createdBallots', JSON.stringify(createdBallots));
+      }
 
       toast.success("Ballot created as draft! You can edit it and make it live when ready.");
-      navigate(`/ballot/${result.urlId}`);
-    } catch (error) {
+      void navigate(`/ballot/${result.urlId}`);
+    }).catch((error) => {
       toast.error("Failed to create ballot");
       console.error(error);
-    } finally {
+    }).finally(() => {
       setIsSubmitting(false);
-    }
+    });
   };
 
   return (
@@ -347,7 +352,7 @@ export function CreateBallot() {
           </button>
           <button
             type="button"
-            onClick={() => navigate("/")}
+            onClick={() => void navigate("/")}
             className="px-6 py-3 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50"
           >
             Cancel
