@@ -83,6 +83,16 @@ export const createBallot = mutation({
     durationType: v.union(v.literal("time"), v.literal("count"), v.literal("manual")),
     timeLimit: v.optional(v.number()),
     voteLimit: v.optional(v.number()),
+    // Result visibility controls
+    resultVisibility: v.optional(v.union(
+      v.literal("live"),
+      v.literal("after_voting"),
+      v.literal("manual"),
+      v.literal("never")
+    )),
+    showPartialResults: v.optional(v.boolean()),
+    hideResultsUntilClosed: v.optional(v.boolean()),
+    resultsVisibleToPublic: v.optional(v.boolean()),
   },
   handler: async (ctx, args) => {
     const userId = await getAuthUserId(ctx);
@@ -99,6 +109,11 @@ export const createBallot = mutation({
       voteLimit: args.voteLimit,
       isActive: true,
       urlId,
+      // Result visibility settings with defaults
+      resultVisibility: args.resultVisibility || "live",
+      showPartialResults: args.showPartialResults ?? true,
+      hideResultsUntilClosed: args.hideResultsUntilClosed ?? false,
+      resultsVisibleToPublic: args.resultsVisibleToPublic ?? true,
     });
 
     // Track user activity if logged in
@@ -194,10 +209,51 @@ export const submitVote = mutation({
 });
 
 export const getBallotResults = query({
-  args: { ballotId: v.id("ballots") },
+  args: {
+    ballotId: v.id("ballots"),
+    requesterId: v.optional(v.string()) // To identify if requester is the creator
+  },
   handler: async (ctx, args) => {
     const ballot = await ctx.db.get(args.ballotId);
     if (!ballot) return null;
+
+    const userId = await getAuthUserId(ctx);
+    const isCreator = userId && ballot.creatorId === userId;
+
+    // Check if results should be visible
+    const shouldShowResults = () => {
+      // Creator can always see results
+      if (isCreator) return true;
+
+      // Check visibility settings
+      switch (ballot.resultVisibility) {
+        case "never":
+          return false;
+        case "manual":
+          return false; // Only visible when manually enabled (handled separately)
+        case "after_voting":
+          return !ballot.isActive || (ballot.closedAt !== undefined);
+        case "live":
+          return ballot.resultsVisibleToPublic;
+        default:
+          return true;
+      }
+    };
+
+    // If results should be hidden, return limited info
+    if (!shouldShowResults()) {
+      return {
+        ballot,
+        totalVotes: 0,
+        results: { rounds: [], winner: null },
+        resultsHidden: true,
+        hiddenReason: ballot.resultVisibility === "never"
+          ? "Results are not visible for this ballot"
+          : ballot.resultVisibility === "after_voting"
+          ? "Results will be visible after voting ends"
+          : "Results are not currently visible"
+      };
+    }
 
     const votes = await ctx.db
       .query("votes")
@@ -205,11 +261,20 @@ export const getBallotResults = query({
       .collect();
 
     const results = calculateRCVResults(votes, ballot.choices);
-    
+
+    // Filter results based on showPartialResults setting
+    const filteredResults = ballot.showPartialResults
+      ? results
+      : {
+          rounds: results.rounds.length > 0 ? [results.rounds[results.rounds.length - 1]] : [],
+          winner: results.winner
+        };
+
     return {
       ballot,
       totalVotes: votes.length,
-      results,
+      results: filteredResults,
+      resultsHidden: false,
     };
   },
 });
@@ -231,6 +296,42 @@ export const closeBallot = mutation({
       isActive: false,
       closedAt: Date.now(),
     });
+
+    return { success: true };
+  },
+});
+
+export const updateResultVisibility = mutation({
+  args: {
+    ballotId: v.id("ballots"),
+    resultVisibility: v.optional(v.union(
+      v.literal("live"),
+      v.literal("after_voting"),
+      v.literal("manual"),
+      v.literal("never")
+    )),
+    showPartialResults: v.optional(v.boolean()),
+    hideResultsUntilClosed: v.optional(v.boolean()),
+    resultsVisibleToPublic: v.optional(v.boolean()),
+  },
+  handler: async (ctx, args) => {
+    const userId = await getAuthUserId(ctx);
+    if (!userId) {
+      throw new Error("Must be logged in to update result visibility");
+    }
+
+    const ballot = await ctx.db.get(args.ballotId);
+    if (!ballot || ballot.creatorId !== userId) {
+      throw new Error("Not authorized to update this ballot");
+    }
+
+    const updates: any = {};
+    if (args.resultVisibility !== undefined) updates.resultVisibility = args.resultVisibility;
+    if (args.showPartialResults !== undefined) updates.showPartialResults = args.showPartialResults;
+    if (args.hideResultsUntilClosed !== undefined) updates.hideResultsUntilClosed = args.hideResultsUntilClosed;
+    if (args.resultsVisibleToPublic !== undefined) updates.resultsVisibleToPublic = args.resultsVisibleToPublic;
+
+    await ctx.db.patch(args.ballotId, updates);
 
     return { success: true };
   },
