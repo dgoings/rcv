@@ -236,6 +236,22 @@ export const closeBallot = mutation({
   },
 });
 
+export const checkUserVoted = query({
+  args: {
+    ballotId: v.id("ballots"),
+    voterId: v.string(),
+  },
+  handler: async (ctx, args) => {
+    const existingVote = await ctx.db
+      .query("votes")
+      .withIndex("by_voter", (q) => q.eq("voterId", args.voterId))
+      .filter((q) => q.eq(q.field("ballotId"), args.ballotId))
+      .first();
+
+    return { hasVoted: !!existingVote };
+  },
+});
+
 export const getUserBallots = query({
   args: {},
   handler: async (ctx) => {
@@ -250,7 +266,7 @@ export const getUserBallots = query({
     const createdBallotIds = activities
       .filter(a => a.activityType === "created")
       .map(a => a.ballotId);
-    
+
     const votedBallotIds = activities
       .filter(a => a.activityType === "voted")
       .map(a => a.ballotId);

@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useMutation } from "convex/react";
+import { useMutation, useQuery } from "convex/react";
 import { api } from "../../convex/_generated/api";
 import { toast } from "sonner";
 import { Id } from "../../convex/_generated/dataModel";
@@ -20,9 +20,22 @@ export function VotingInterface({ ballot, voterId, onVoteSubmitted }: VotingInte
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const submitVote = useMutation(api.ballots.submitVote);
+  const voteStatus = useQuery(api.ballots.checkUserVoted,
+    voterId ? { ballotId: ballot._id, voterId } : "skip"
+  );
 
   const isExpired = ballot.timeLimit ? Date.now() > ballot.timeLimit : false;
-  const canVote = ballot.isActive && !isExpired;
+  const hasVoted = voteStatus?.hasVoted ?? false;
+  const canVote = ballot.isActive && !isExpired && !hasVoted;
+
+  // Show loading state while checking vote status
+  if (voteStatus === undefined) {
+    return (
+      <div className="flex justify-center items-center py-8">
+        <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600"></div>
+      </div>
+    );
+  }
 
   const setRank = (choiceIndex: number, rank: number) => {
     const newRankings = { ...rankings };
@@ -81,10 +94,18 @@ export function VotingInterface({ ballot, voterId, onVoteSubmitted }: VotingInte
     return (
       <div className="text-center py-8">
         <div className="text-gray-500 mb-4">
-          {isExpired ? "Voting has ended" : "This ballot is closed"}
+          {hasVoted
+            ? "You have already voted on this ballot"
+            : isExpired
+            ? "Voting has ended"
+            : "This ballot is closed"
+          }
         </div>
         <p className="text-sm text-gray-400">
-          You can still view the results in the Results tab
+          {hasVoted
+            ? "Thank you for participating! You can view the results in the Results tab."
+            : "You can still view the results in the Results tab"
+          }
         </p>
       </div>
     );
