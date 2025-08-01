@@ -386,3 +386,51 @@ export const getUserBallots = query({
     };
   },
 });
+
+export const deleteBallot = mutation({
+  args: { ballotId: v.id("ballots") },
+  handler: async (ctx, args) => {
+    const userId = await getAuthUserId(ctx);
+    if (!userId) {
+      throw new Error("Must be logged in to delete ballot");
+    }
+
+    const ballot = await ctx.db.get(args.ballotId);
+    if (!ballot) {
+      throw new Error("Ballot not found");
+    }
+
+    if (ballot.creatorId !== userId) {
+      throw new Error("Not authorized to delete this ballot");
+    }
+
+    if (ballot.isActive) {
+      throw new Error("Cannot delete an active ballot. Close it first.");
+    }
+
+    // Delete all votes associated with this ballot
+    const votes = await ctx.db
+      .query("votes")
+      .withIndex("by_ballot", (q) => q.eq("ballotId", args.ballotId))
+      .collect();
+
+    for (const vote of votes) {
+      await ctx.db.delete(vote._id);
+    }
+
+    // Delete all user activity records associated with this ballot
+    const activities = await ctx.db
+      .query("userBallotActivity")
+      .withIndex("by_ballot", (q) => q.eq("ballotId", args.ballotId))
+      .collect();
+
+    for (const activity of activities) {
+      await ctx.db.delete(activity._id);
+    }
+
+    // Finally, delete the ballot itself
+    await ctx.db.delete(args.ballotId);
+
+    return { success: true };
+  },
+});

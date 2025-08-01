@@ -8,6 +8,7 @@ import { SignInForm } from "../SignInForm";
 export function Dashboard() {
   const userBallots = useQuery(api.ballots.getUserBallots);
   const closeBallot = useMutation(api.ballots.closeBallot);
+  const deleteBallot = useMutation(api.ballots.deleteBallot);
 
   const handleCloseBallot = async (ballotId: string) => {
     try {
@@ -15,6 +16,19 @@ export function Dashboard() {
       toast.success("Ballot closed successfully");
     } catch (error: any) {
       toast.error(error.message || "Failed to close ballot");
+    }
+  };
+
+  const handleDeleteBallot = async (ballotId: string, ballotTitle: string) => {
+    if (!confirm(`Are you sure you want to delete "${ballotTitle}"? This action cannot be undone.`)) {
+      return;
+    }
+
+    try {
+      await deleteBallot({ ballotId: ballotId as any });
+      toast.success("Ballot deleted successfully");
+    } catch (error: any) {
+      toast.error(error.message || "Failed to delete ballot");
     }
   };
 
@@ -70,6 +84,14 @@ export function Dashboard() {
                             className="text-red-600 hover:text-red-700 text-sm font-medium ml-4"
                           >
                             Close Ballot
+                          </button>
+                        )}
+                        {!ballot.isActive && (
+                          <button
+                            onClick={() => handleDeleteBallot(ballot._id, ballot.title)}
+                            className="text-red-600 hover:text-red-700 text-sm font-medium ml-4"
+                          >
+                            Delete Ballot
                           </button>
                         )}
                       </div>
