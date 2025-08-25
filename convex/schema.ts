@@ -21,6 +21,7 @@ const applicationTables = {
 
     // Result visibility controls
     resultVisibility: v.union(
+      v.literal("admin"), // Results visible only to admin
       v.literal("live"), // Results visible in real-time
       v.literal("after_voting"), // Results visible only after voting ends
       v.literal("manual"), // Results visible only when manually enabled by creator
